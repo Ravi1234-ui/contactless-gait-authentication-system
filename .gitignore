@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+env/
+
+# Data folders (large datasets)
+data/raw/uci/
+data/raw/real_world/
+data/processed/
+
+# Model weights (optional)
+models/gait_embedding_model.pth
+
+# Streamlit cache
+.streamlit/
+
+# OS files
+.DS_Store
+Thumbs.db
