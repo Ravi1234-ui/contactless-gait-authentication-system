@@ -17,10 +17,9 @@ class SimilarityEngine:
         self.threshold = threshold
         self.storage_path = storage_path
 
-        if not os.path.exists(self.storage_path):
-            os.makedirs(self.storage_path)
+        os.makedirs(self.storage_path, exist_ok=True)
 
-        self.registry = {}  # employee_id -> embedding tensor
+        self.registry = {}
 
     def save_employee_embedding(self, employee_id, embedding):
         """
