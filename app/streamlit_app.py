@@ -19,12 +19,20 @@ from authentication.similarity_engine import SimilarityEngine
 # LOAD MODEL (only once)
 # -----------------------------
 @st.cache_resource
+@st.cache_resource
 def load_model():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Get absolute path to project root
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    model_path = os.path.join(BASE_DIR, "models", "gait_embedding_model.pth")
+
     model = GaitEmbeddingModel()
-    model.load_state_dict(torch.load("models/gait_embedding_model.pth", map_location=device))
+    model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     model.eval()
+
     return model, device
 
 
