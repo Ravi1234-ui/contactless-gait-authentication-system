@@ -13,9 +13,6 @@ data/raw/uci/
 data/raw/real_world/
 data/processed/
 
-# Model weights (optional)
-models/gait_embedding_model.pth
-
 # Streamlit cache
 .streamlit/
 
