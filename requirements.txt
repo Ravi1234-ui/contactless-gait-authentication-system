@@ -1,5 +1,5 @@
-torch
 streamlit
+torch
 numpy
 pandas
 scipy
