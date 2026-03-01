@@ -1,12 +1,13 @@
 # app/streamlit_app.py
+
 import sys
 import os
 
 # Add project root to Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
 import streamlit as st
 import torch
-import os
 import tempfile
 import numpy as np
 
@@ -16,30 +17,49 @@ from authentication.similarity_engine import SimilarityEngine
 
 
 # -----------------------------
-# LOAD MODEL (only once)
+# LOAD MODEL + NORMALIZATION
 # -----------------------------
 @st.cache_resource
-@st.cache_resource
 def load_model():
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Get absolute path to project root
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
     model_path = os.path.join(BASE_DIR, "models", "gait_embedding_model.pth")
+    norm_path = os.path.join(BASE_DIR, "models", "normalization_params.npz")
 
     model = GaitEmbeddingModel()
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.to(device)
     model.eval()
 
-    return model, device
+    # Load normalization parameters
+    norm_data = np.load(norm_path)
+    channel_mean = norm_data["mean"]
+    channel_std = norm_data["std"]
+
+    return model, device, channel_mean, channel_std
+
+
+# -----------------------------
+# APPLY GLOBAL NORMALIZATION
+# -----------------------------
+def normalize_windows(windows, mean, std):
+    """
+    Channel-wise normalization
+    windows shape: (N, 128, 6)
+    """
+    return (windows - mean) / std
 
 
 # -----------------------------
 # GENERATE EMBEDDING
 # -----------------------------
-def generate_embedding(model, device, windows):
+def generate_embedding(model, device, windows, mean, std):
+
+    # Apply global normalization first
+    windows = normalize_windows(windows, mean, std)
 
     embeddings = []
 
@@ -50,6 +70,7 @@ def generate_embedding(model, device, windows):
             embeddings.append(emb.squeeze(0).cpu().numpy())
 
     embeddings = np.array(embeddings)
+
     mean_embedding = np.mean(embeddings, axis=0)
     mean_embedding = mean_embedding / np.linalg.norm(mean_embedding)
 
@@ -63,7 +84,8 @@ st.set_page_config(page_title="Gait Authentication System", layout="centered")
 
 st.title("🚶‍♂️ Gait-Based Employee Authentication System")
 
-model, device = load_model()
+model, device, channel_mean, channel_std = load_model()
+
 engine = SimilarityEngine(threshold=0.65)
 engine.load_registry()
 
@@ -105,11 +127,16 @@ if menu == "Register Employee":
                 loader = RealWorldDataLoader(base_path=tmpdir)
                 windows, labels = loader.load_all()
 
-                embedding = generate_embedding(model, device, windows)
+                if len(windows) == 0:
+                    st.error("No valid walking windows detected.")
+                else:
+                    embedding = generate_embedding(
+                        model, device, windows,
+                        channel_mean, channel_std
+                    )
 
-                engine.save_employee_embedding(employee_id, embedding)
-
-                st.success(f"Employee {employee_id} Registered Successfully ✅")
+                    engine.save_employee_embedding(employee_id, embedding)
+                    st.success(f"Employee {employee_id} Registered Successfully ✅")
 
         else:
             st.error("Please upload both files and enter Employee ID.")
@@ -146,19 +173,24 @@ elif menu == "Authenticate Person":
                 loader = RealWorldDataLoader(base_path=tmpdir)
                 windows, labels = loader.load_all()
 
-                embedding = generate_embedding(model, device, windows)
-
-                match_id, score, status = engine.authenticate(embedding)
-
-                st.subheader("Result")
-
-                st.write("Best Match:", match_id)
-                st.write("Similarity Score:", round(score, 4))
-
-                if status == "ACCESS GRANTED":
-                    st.success("ACCESS GRANTED ✅")
+                if len(windows) == 0:
+                    st.error("No valid walking windows detected.")
                 else:
-                    st.error("ACCESS DENIED ❌")
+                    embedding = generate_embedding(
+                        model, device, windows,
+                        channel_mean, channel_std
+                    )
+
+                    match_id, score, status = engine.authenticate(embedding)
+
+                    st.subheader("Result")
+                    st.write("Best Match:", match_id)
+                    st.write("Similarity Score:", round(score, 4))
+
+                    if status == "ACCESS GRANTED":
+                        st.success("ACCESS GRANTED ✅")
+                    else:
+                        st.error("ACCESS DENIED ❌")
 
         else:
             st.error("Please upload both CSV files.")
@@ -167,15 +199,11 @@ elif menu == "Authenticate Person":
 # ============================
 # SYSTEM INFO
 # ============================
-# ============================
-# SYSTEM INFO
-# ============================
 else:
 
     st.header("🟣 System Information")
 
     st.subheader("📦 Model Details")
-
     st.write("Model Name: Triplet-Based Gait Embedding Network")
     st.write("Architecture: 1D CNN + Fully Connected Embedding Layer")
     st.write("Embedding Dimension: 128")
@@ -185,7 +213,6 @@ else:
     st.divider()
 
     st.subheader("📊 Training Data")
-
     st.write("UCI HAR Subjects: 30")
     st.write("LLM-Generated Synthetic Subjects: 1000+")
     st.write("Total Training Identities: 1030+")
@@ -194,7 +221,6 @@ else:
     st.divider()
 
     st.subheader("🔐 Deployment Settings")
-
     st.write("Registered Employees:", len(engine.registry))
     st.write("Similarity Threshold:", engine.threshold)
     st.write("Sensor Types: Accelerometer (x,y,z) + Gyroscope (x,y,z)")

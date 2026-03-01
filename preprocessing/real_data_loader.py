@@ -22,7 +22,6 @@ class RealWorldDataLoader:
     # ----------------------------
     def clean_file(self, file_path, is_gyro=False):
 
-        # Try auto delimiter detection
         df = pd.read_csv(
             file_path,
             comment="#",
@@ -32,18 +31,35 @@ class RealWorldDataLoader:
 
         df = df.dropna()
 
-        # Print detected columns for debugging
         print("Detected columns:", df.columns)
 
-        # Keep only first 4 numeric columns after time
+        # Keep first 4 columns (time + x,y,z)
+        df = df.iloc[:, 0:4]
+
         if is_gyro:
-            df = df.iloc[:, 0:4]
             df.columns = ["time", "gyro_x", "gyro_y", "gyro_z"]
         else:
-            df = df.iloc[:, 0:4]
             df.columns = ["time", "acc_x", "acc_y", "acc_z"]
 
+        # Ensure numeric type
+        df = df.astype(np.float32)
+
         return df
+
+    # ----------------------------
+    # REMOVE GRAVITY COMPONENT
+    # ----------------------------
+    def remove_gravity(self, acc_df):
+        """
+        Physics Toolbox accelerometer includes gravity.
+        Remove DC component (mean subtraction).
+        """
+
+        acc_df["acc_x"] -= acc_df["acc_x"].mean()
+        acc_df["acc_y"] -= acc_df["acc_y"].mean()
+        acc_df["acc_z"] -= acc_df["acc_z"].mean()
+
+        return acc_df
 
     # ----------------------------
     # RESAMPLE TO 50 Hz
@@ -72,7 +88,7 @@ class RealWorldDataLoader:
 
         new_df.insert(0, "time", resampled_time)
 
-        return new_df
+        return new_df.astype(np.float32)
 
     # ----------------------------
     # LOAD ONE PERSON
@@ -93,7 +109,10 @@ class RealWorldDataLoader:
         gyro_df = self.clean_file(gyro_path, is_gyro=True)
         acc_df = self.clean_file(acc_path, is_gyro=False)
 
-        # Resample both to 50 Hz
+        # Remove gravity from accelerometer
+        acc_df = self.remove_gravity(acc_df)
+
+        # Resample to 50Hz
         gyro_df = self.resample_signal(gyro_df)
         acc_df = self.resample_signal(acc_df)
 
@@ -106,13 +125,12 @@ class RealWorldDataLoader:
 
         merged = merged.dropna()
 
-        # Windowing
+        # Create windows (NO normalization here)
         windows = self.windowing.create_windows(merged)
-        windows = self.windowing.normalize_windows(windows)
 
         print(f"{person_folder} → {windows.shape[0]} windows created")
 
-        return windows
+        return windows.astype(np.float32)
 
     # ----------------------------
     # LOAD ALL PERSONS
@@ -136,7 +154,7 @@ class RealWorldDataLoader:
                         all_windows.append(window)
                         all_labels.append(person)
 
-        return np.array(all_windows), np.array(all_labels)
+        return np.array(all_windows, dtype=np.float32), np.array(all_labels)
 
 
 # ----------------------------

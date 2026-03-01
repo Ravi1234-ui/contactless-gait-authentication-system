@@ -26,6 +26,7 @@ class UCILoader:
     def load_split(self, split="train"):
         """
         Loads either train or test split.
+
         Returns:
             windows: shape (N, 128, 6)
             subject_ids: shape (N,)
@@ -36,29 +37,49 @@ class UCILoader:
         )
 
         # Accelerometer
-        acc_x = np.loadtxt(os.path.join(inertial_path, f"body_acc_x_{split}.txt"))
-        acc_y = np.loadtxt(os.path.join(inertial_path, f"body_acc_y_{split}.txt"))
-        acc_z = np.loadtxt(os.path.join(inertial_path, f"body_acc_z_{split}.txt"))
+        acc_x = np.loadtxt(
+            os.path.join(inertial_path, f"body_acc_x_{split}.txt"),
+            dtype=np.float32
+        )
+        acc_y = np.loadtxt(
+            os.path.join(inertial_path, f"body_acc_y_{split}.txt"),
+            dtype=np.float32
+        )
+        acc_z = np.loadtxt(
+            os.path.join(inertial_path, f"body_acc_z_{split}.txt"),
+            dtype=np.float32
+        )
 
         # Gyroscope
-        gyro_x = np.loadtxt(os.path.join(inertial_path, f"body_gyro_x_{split}.txt"))
-        gyro_y = np.loadtxt(os.path.join(inertial_path, f"body_gyro_y_{split}.txt"))
-        gyro_z = np.loadtxt(os.path.join(inertial_path, f"body_gyro_z_{split}.txt"))
+        gyro_x = np.loadtxt(
+            os.path.join(inertial_path, f"body_gyro_x_{split}.txt"),
+            dtype=np.float32
+        )
+        gyro_y = np.loadtxt(
+            os.path.join(inertial_path, f"body_gyro_y_{split}.txt"),
+            dtype=np.float32
+        )
+        gyro_z = np.loadtxt(
+            os.path.join(inertial_path, f"body_gyro_z_{split}.txt"),
+            dtype=np.float32
+        )
 
         # Stack into (N, 128, 6)
         windows = np.stack(
             [acc_x, acc_y, acc_z, gyro_x, gyro_y, gyro_z],
             axis=2
-        )
+        ).astype(np.float32)
 
         # Load activity labels
         y = np.loadtxt(
-            os.path.join(self.base_path, split, f"y_{split}.txt")
+            os.path.join(self.base_path, split, f"y_{split}.txt"),
+            dtype=np.int32
         )
 
         # Load subject IDs
         subjects = np.loadtxt(
-            os.path.join(self.base_path, split, f"subject_{split}.txt")
+            os.path.join(self.base_path, split, f"subject_{split}.txt"),
+            dtype=np.int32
         )
 
         # Keep only WALKING (label == 1)
@@ -80,14 +101,12 @@ class UCILoader:
         windows = np.concatenate([train_windows, test_windows], axis=0)
         subjects = np.concatenate([train_subjects, test_subjects], axis=0)
 
-        return windows, subjects
+        return windows.astype(np.float32), subjects.astype(np.int32)
 
 
 if __name__ == "__main__":
-    # Example test
 
     base_path = "data/raw/uci/UCI HAR Dataset"
-
     loader = UCILoader(base_path)
 
     windows, subjects = loader.load_all()
