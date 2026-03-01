@@ -2,7 +2,7 @@
 
 A deep learning–based biometric authentication system using accelerometer and gyroscope sensor data.
 
-This system identifies employees based on their walking patterns using a triplet-loss embedding network and cosine similarity–based verification.
+This system identifies employees based on their walking patterns using a **Triplet-Loss Embedding Network** and **Cosine Similarity–based verification**, enhanced with **LLM-driven synthetic dataset expansion**.
 
 ---
 
@@ -15,23 +15,33 @@ This project implements a biometric access control system using:
 - Deep Metric Learning (Triplet Loss)
 - 128-Dimensional Gait Embeddings
 - Cosine Similarity for Authentication
+- LLM-Generated Biomechanical Profiles
+- Physics-Based Signal Simulation
 
 The system supports:
 
 - Employee Registration
 - Real-Time Authentication
+- Global Channel-Wise Normalization
 - Streamlit Web Deployment
-- LLM-Based Synthetic Dataset Expansion
+- Scalable Dataset Expansion (1000+ Identities)
 
 ---
 
 ## 🧠 Model Architecture
 
-- 1D Convolutional Neural Network
+The system uses a 1D Convolutional Neural Network trained with Triplet Loss to learn a discriminative embedding space.
+
+**Architecture Details:**
+
+- 1D CNN Feature Extractor
+- Fully Connected Embedding Layer
 - Embedding Dimension: 128
 - Loss Function: Triplet Loss
 - Similarity Metric: Cosine Similarity
 - Threshold-Based Access Decision
+
+The network ensures that walking samples from the same person are embedded closer together while different individuals are separated in embedding space.
 
 ---
 
@@ -65,6 +75,12 @@ After downloading, place the extracted dataset inside:
 data/raw/uci/
 ```
 
+The system uses:
+
+- body_acc_x/y/z
+- body_gyro_x/y/z
+- WALKING activity only
+
 ---
 
 ### 2️⃣ Real-World Data Collection
@@ -75,7 +91,7 @@ Physics Toolbox Sensor Suite:
 
 https://play.google.com/store/apps/details?id=com.chrystianvieyra.physicstoolboxsuite&hl=en&gl=U0
 
-Configuration used:
+**Configuration Used:**
 
 - Sampling Rate: 50 Hz
 - Sensors:
@@ -91,36 +107,68 @@ EMP_001/
 └── gyroscope.csv
 ```
 
+### Real Data Preprocessing
+
+- Gravity offset removal
+- Resampling to 50 Hz
+- Sliding window segmentation (128 samples)
+- Global channel-wise normalization (same as training)
+
 ---
 
 ## 🤖 LLM Usage
 
-LLM was used to:
+LLM was used to generate **correlated biomechanical walking profiles** grounded in UCI HAR population statistics.
 
-- Generate biomechanical walking profiles
-- Simulate realistic gait diversity
-- Expand dataset to 1000+ identities
-- Improve embedding generalization
+### Step 1: Profile Generation
+
+The LLM generates realistic biomechanical parameters such as:
+
+- Cadence
+- Vertical acceleration amplitude
+- Gyroscope dynamics
+- Step asymmetry
+- Heel-strike sharpness
+
+### Step 2: Physics-Based Signal Simulation
+
+A custom simulator converts these profiles into:
+
+- Multi-harmonic inertial signals
+- Heel-strike transient modeling
+- Left-right asymmetry
+- 6-axis accelerometer + gyroscope time-series windows
 
 Files:
+
 ```
 llm_engine/biomechanical_profile_generator.py
 llm_engine/synthetic_signal_simulator.py
 ```
 
-This significantly improved model robustness.
+This expands the dataset to 1000+ identities while maintaining biomechanical realism and improving embedding generalization.
 
 ---
 
 ## 🔄 System Workflow
 
 ### 1️⃣ Offline Training
+
+Train the model using:
+
 ```
 python -m models.training_pipeline
 ```
 
-- Train embedding model on UCI + synthetic data
-- Save trained model weights
+This process:
+
+- Loads UCI + synthetic windows
+- Computes global channel-wise mean & standard deviation
+- Applies consistent normalization
+- Trains the Triplet embedding model
+- Saves:
+  - gait_embedding_model.pth
+  - normalization_params.npz
 
 ---
 
@@ -128,23 +176,29 @@ python -m models.training_pipeline
 
 - Upload accelerometer.csv
 - Upload gyroscope.csv
+- Preprocess and normalize data
 - Generate gait embedding
-- Store biometric fingerprint
+- Store embedding as biometric fingerprint
 
 ---
 
 ### 3️⃣ Authentication
 
 - Upload new walking sample
+- Apply identical preprocessing
 - Generate embedding
 - Compare with registered employees
-- Output:
+
+Authentication Logic:
 
 ```
+if cosine_similarity >= threshold:
 ACCESS GRANTED
-or
+else:
 ACCESS DENIED
 ```
+
+Default threshold: **0.65**
 
 ---
 
@@ -169,42 +223,34 @@ gait_authentication_system/
 ## 🚀 Run the System
 
 ### Install Dependencies
+
 ```
 pip install -r requirements.txt
 ```
 
 ### Train Model
+
 ```
 python -m models.training_pipeline
 ```
 
 ### Launch Web App
+
 ```
 streamlit run app/streamlit_app.py
 ```
 
 ---
 
-## 🔐 Authentication Logic
-
-```
-If cosine_similarity >= threshold:
-ACCESS GRANTED
-else:
-ACCESS DENIED
-```
-
-Default threshold: 0.75
-
----
-
 ## 🏆 Key Highlights
 
 - 1000+ LLM-augmented synthetic identities
-- Triplet-loss embedding model
+- Physics-based gait signal simulation
+- Triplet-loss metric learning
+- Global normalization consistency
+- Accelerometer + Gyroscope sensor fusion
 - Real-time biometric authentication
-- Accelerometer + Gyroscope fusion
-- Web deployment via Streamlit
+- Streamlit-based deployment
 - Domain-generalized gait representation
 
 ---
