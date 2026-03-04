@@ -65,9 +65,14 @@ class TrainingPipeline:
         mean = np.mean(windows, axis=(0, 1)).astype(np.float32)
         std = np.std(windows, axis=(0, 1)).astype(np.float32) + 1e-8
 
+        # Save normalization parameters
         np.savez(self.norm_save_path, mean=mean, std=std)
 
-        print("Saved normalization parameters to:", self.norm_save_path)
+        print("\nNormalization Parameters:")
+        print("Mean:", mean)
+        print("Std:", std)
+
+        print("\nSaved normalization parameters to:", self.norm_save_path)
 
         return mean, std
 
@@ -79,7 +84,7 @@ class TrainingPipeline:
     # ----------------------------------
     def run(self, epochs=20):
 
-        print("Loading UCI data...")
+        print("\nLoading UCI data...")
         loader = UCILoader(self.uci_path)
         uci_windows, uci_subjects = loader.load_all()
 
@@ -87,7 +92,7 @@ class TrainingPipeline:
 
         print("UCI windows:", uci_windows.shape)
 
-        print("Loading Synthetic data...")
+        print("\nLoading Synthetic data...")
         syn_windows, syn_subjects = self.load_synthetic_data()
 
         print("Synthetic windows:", syn_windows.shape)
@@ -100,19 +105,36 @@ class TrainingPipeline:
             all_windows = uci_windows
             all_subjects = uci_subjects
 
-        print("Total windows:", all_windows.shape)
+        print("\nTotal windows:", all_windows.shape)
 
-        # Compute & apply global normalization
+        # ----------------------------------
+        # GLOBAL NORMALIZATION
+        # ----------------------------------
         mean, std = self.compute_global_normalization(all_windows)
+
         all_windows = self.apply_normalization(all_windows, mean, std)
 
-        # Train embedding model
+        # ----------------------------------
+        # SHUFFLE DATASET (important for triplet training)
+        # ----------------------------------
+        indices = np.random.permutation(len(all_windows))
+        all_windows = all_windows[indices]
+        all_subjects = all_subjects[indices]
+
+        # ----------------------------------
+        # TRAIN EMBEDDING MODEL
+        # ----------------------------------
         trainer = TripletTrainer()
-        model = trainer.train(all_windows, all_subjects, epochs=epochs)
+
+        model = trainer.train(
+            all_windows,
+            all_subjects,
+            epochs=epochs
+        )
 
         torch.save(model.state_dict(), self.model_save_path)
 
-        print(f"Model saved to {self.model_save_path}")
+        print("\nModel saved to:", self.model_save_path)
 
 
 if __name__ == "__main__":
