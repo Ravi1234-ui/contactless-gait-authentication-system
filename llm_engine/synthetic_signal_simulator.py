@@ -151,7 +151,7 @@ class SyntheticSignalSimulator:
     # Generate windows for one identity
     # -------------------------------------------------------
 
-    def generate_identity_windows(self, profile, windows_per_identity=120):
+    def generate_identity_windows(self, profile, windows_per_identity=60):
 
         identity_id = profile["identity_id"]
 
@@ -175,7 +175,7 @@ class SyntheticSignalSimulator:
     # Generate full synthetic dataset
     # -------------------------------------------------------
 
-    def generate_all(self, windows_per_identity=120):
+    def generate_all(self, windows_per_identity=60):
 
         profiles = self.load_profiles()
 
@@ -200,4 +200,4 @@ if __name__ == "__main__":
 
     simulator = SyntheticSignalSimulator()
 
-    simulator.generate_all(windows_per_identity=120)
+    simulator.generate_all(windows_per_identity=60)
